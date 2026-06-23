@@ -112,21 +112,28 @@ class VKService:
                 count=100,
             )
         except ApiError as error:
-            if error.code == 30:
+            if error.code in (15, 30):
                 return []
             raise
-
         photos = response.get("items", [])
-        photos.sort(
-            key=lambda photo: photo.get("likes", {}).get("count", 0),
-            reverse=True,
-        )
-
-        attachments = []
-        for photo in photos[:3]:
-            attachments.append(f"photo{photo['owner_id']}_{photo['id']}")
-
-        return attachments
+        valid_photos = []
+        for photo in photos:
+            if not photo.get("id") or not photo.get("owner_id"):
+                continue
+            sizes = photo.get("sizes")
+            if not sizes:
+                continue
+            likes = photo.get("likes", {}).get("count", 0)
+            valid_photos.append({
+                "owner_id": photo["owner_id"],
+                "id": photo["id"],
+                "likes": likes
+            })
+        valid_photos.sort(key=lambda x: x["likes"], reverse=True)
+        return [
+            f"photo{p['owner_id']}_{p['id']}"
+            for p in valid_photos[:3]
+        ]
 
     @staticmethod
     def get_opposite_sex(sex: int | None) -> int | None:

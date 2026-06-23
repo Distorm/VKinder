@@ -140,7 +140,7 @@ class VKinderBot:
         if candidate is None:
             self.vk.send_message(
                 peer_id,
-                "Новых анкет пока нет. Попробуй изменить город или повторить позже.",
+                "Подходящие анкеты закончились. Попробуй изменить город или повторить позже.",
                 keyboard=self.keyboard,
             )
             return
@@ -164,12 +164,7 @@ class VKinderBot:
         candidate = CandidateRepository.find_not_shown(db, user)
         if candidate:
             return candidate
-        for _ in range(5):
-            if user.search_offset >= 1000:
-                user.search_offset = 0
-                db.commit()
-                break
-
+        while user.search_offset < 1000:
             profiles = self.vk.search_people(
                 sex=user.sex,
                 city_id=user.city_id,
@@ -179,15 +174,14 @@ class VKinderBot:
             )
             user.search_offset += 50
             db.commit()
-
+            if not profiles:
+                break
             for profile in profiles:
                 data = self.vk.candidate_from_vk(profile)
                 CandidateRepository.get_or_create(db, data)
-
             candidate = CandidateRepository.find_not_shown(db, user)
             if candidate:
                 return candidate
-
         return None
 
     @staticmethod
